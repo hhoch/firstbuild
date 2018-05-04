@@ -1,5 +1,4 @@
 pipeline {
-    agent none
     parameters {
         string(defaultValue: 'dev', description: 'The target environment', name: 'DEPLOY_ENV')
         string(defaultValue: '', description: 'The target version', name: 'VERSION')
