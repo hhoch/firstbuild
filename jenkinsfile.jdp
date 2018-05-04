@@ -1,0 +1,43 @@
+pipeline {
+    agent none
+    parameters {
+        string(defaultValue: 'dev', description: 'The target environment', name: 'DEPLOY_ENV')
+        string(defaultValue: '', description: 'The target version', name: 'VERSION')
+    }
+    stages {
+        stage('Windows-Dev') {
+            steps {
+                checkout scm
+                bat 'npm install'
+                bat 'if exist www rmdir www /s /q'
+                bat 'npm run build'
+                bat 'if not exist platforms npx cordova platform add windows --nosave'
+                bat "npx cordova build windows --arch=x64 --device --jenkinsBuildId=${env.BUILD_NUMBER} -- --bundle"
+
+                script {
+                    def version = readProperties file: 'env.properties';
+                    env['VERSION'] = version['VERSION'];
+                }
+
+                bat "ren platforms\\windows\\AppPackages\\CordovaApp.Windows10_${env.VERSION}_debug_Test\\CordovaApp.Windows10_${env.VERSION}_x64_debug.appxbundle " +
+                    "gothaer-beratungsapp-dev-${env.VERSION}.appxbundle"
+            }
+            post {
+                success {
+                    archiveArtifacts 'platforms/windows/AppPackages/*/*.appxbundle'
+                    sshPublisher(publishers: [
+                        [configName             : 'cpupdate-local', transfers: [
+                            [sourceFiles    : "platforms/windows/AppPackages/CordovaApp.Windows10_${env.VERSION}_debug_Test/*.appxbundle",
+                                removePrefix   : "platforms/windows/AppPackages/CordovaApp.Windows10_${env.VERSION}_debug_Test",
+                                remoteDirectory: "beratungsapp-dev42-windows/version${env.VERSION}",
+                                execCommand    : "cd /var/www/html/beratungsapp-dev42-windows;" +
+                                "sed -i \"1s/.*/version = ${env.VERSION}/\" config.ini",
+                                execTimeout    : 120000],
+                            [sourceFiles    : 'ReleaseNotes.html',
+                                remoteDirectory: "beratungsapp-dev42-windows/version${env.VERSION}"],
+                        ], usePromotionTimestamp: false, useWorkspaceInPromotion: false, verbose: false]])
+                }
+            }
+        }
+    }
+}
