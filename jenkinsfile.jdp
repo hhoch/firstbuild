@@ -1,4 +1,5 @@
 pipeline {
+    agent { label 'windows_10 && node_9.5 && dev' }
     parameters {
         string(defaultValue: 'dev', description: 'The target environment', name: 'DEPLOY_ENV')
         string(defaultValue: '', description: 'The target version', name: 'VERSION')
